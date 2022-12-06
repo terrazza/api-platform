@@ -1,7 +1,7 @@
 #syntax=docker/dockerfile:1.4
-# Adapted from https://github.com/dunglas/symfony-docker
-
-# Prod image
+###
+### php section (prod)
+###
 FROM php:8.1-fpm-alpine AS app_php
 
 ENV APP_ENV=prod
@@ -52,16 +52,18 @@ RUN set -eux; \
 
 ###> recipes ###
 
-###> doctrine/doctrine-bundle ### postgres ###
+###
+### database extension for php
+###
+### for postgres ###
 # RUN apk add --no-cache --virtual .pgsql-deps postgresql-dev; \
 #	docker-php-ext-install -j$(nproc) pdo_pgsql; \
 #	apk add --no-cache --virtual .pgsql-rundeps so:libpq.so.5; \
 #	apk del .pgsql-deps
 
-###> doctrine/doctrine-bundle ### mysql ###
+### for mysql ###
 RUN docker-php-ext-install -j$(nproc) pdo pdo_mysql
 
-###< doctrine/doctrine-bundle ###
 ###< recipes ###
 
 RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
@@ -105,7 +107,9 @@ RUN set -eux; \
 	composer run-script --no-dev post-install-cmd; \
 	chmod +x bin/console; sync
 
-# Dev image
+###
+### php section (dev)
+###
 FROM app_php AS app_php_dev
 
 ENV APP_ENV=dev XDEBUG_MODE=off
@@ -125,20 +129,34 @@ RUN set -eux; \
 
 RUN rm -f .env.local.php
 
+###
+### webserver section (caddy)
+###
 # Build Caddy with the Mercure and Vulcain modules
-FROM caddy:2-builder-alpine AS app_caddy_builder
-
-RUN xcaddy build \
-	--with github.com/dunglas/mercure \
-	--with github.com/dunglas/mercure/caddy \
-	--with github.com/dunglas/vulcain \
-	--with github.com/dunglas/vulcain/caddy
+# FROM caddy:2-builder-alpine AS app_caddy_builder
+#
+# RUN xcaddy build \
+#	--with github.com/dunglas/mercure \
+#	--with github.com/dunglas/mercure/caddy \
+#	--with github.com/dunglas/vulcain \
+#	--with github.com/dunglas/vulcain/caddy
 
 # Caddy image
-FROM caddy:2-alpine AS app_caddy
+# FROM caddy:2-alpine AS app_www
+
+# WORKDIR /srv/app
+
+# COPY --from=app_caddy_builder --link /usr/bin/caddy /usr/bin/caddy
+# COPY --from=app_php --link /srv/app/public public/
+# COPY --link docker/caddy/Caddyfile /etc/caddy/Caddyfile
+
+###
+### webserver section (nginx)
+###
+FROM nginx:1.20-alpine as app_www
 
 WORKDIR /srv/app
 
-COPY --from=app_caddy_builder --link /usr/bin/caddy /usr/bin/caddy
 COPY --from=app_php --link /srv/app/public public/
-COPY --link docker/caddy/Caddyfile /etc/caddy/Caddyfile
+COPY --link docker/nginx/conf.d /etc/nginx/conf.d
+

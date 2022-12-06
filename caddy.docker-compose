@@ -8,8 +8,8 @@ services:
     depends_on:
       - database
     restart: unless-stopped
-#    volumes:
-#      - php_socket:/var/run
+    volumes:
+      - php_socket:/var/run/php
     healthcheck:
       interval: 10s
       timeout: 3s
@@ -23,17 +23,23 @@ services:
       MERCURE_PUBLIC_URL: https://${SERVER_NAME:-localhost}/.well-known/mercure
       MERCURE_JWT_SECRET: ${CADDY_MERCURE_JWT_SECRET:-!ChangeThisMercureHubJWTSecretKey!}
 
-  www:
+  caddy:
     build:
-      context: ./api
+      context: api/
       target: app_www
     depends_on:
       - php
+#      - pwa
     environment:
+#      PWA_UPSTREAM: pwa:3000
       SERVER_NAME: ${SERVER_NAME:-localhost}, caddy:80
+      MERCURE_PUBLISHER_JWT_KEY: ${CADDY_MERCURE_JWT_SECRET:-!ChangeThisMercureHubJWTSecretKey!}
+      MERCURE_SUBSCRIBER_JWT_KEY: ${CADDY_MERCURE_JWT_SECRET:-!ChangeThisMercureHubJWTSecretKey!}
     restart: unless-stopped
-#    volumes:
-#      - php_socket:/var/run
+    volumes:
+      - php_socket:/var/run/php
+      - caddy_data:/data
+      - caddy_config:/config
     ports:
       # HTTP
       - target: 80
@@ -50,10 +56,12 @@ services:
 
   database:
     build:
-      context: ./db
-      target: prod   
+      context: db/
+      target: prod    
     command: --character-set-server=utf8 --collation-server=utf8_general_ci --default-authentication-plugin=mysql_native_password
     restart: always
+#    security_opt:
+#      - seccomp:unconfirmed
     environment:
       - MYSQL_ROOT_PASSWORD=root
       - MYSQL_USER=apiu
@@ -67,5 +75,7 @@ services:
         protocol: tcp  
 
 volumes:
-#  php_socket:
+  php_socket:
+  caddy_data:
+  caddy_config:
   db_data:
