@@ -51,11 +51,16 @@ RUN set -eux; \
 	apk del .build-deps
 
 ###> recipes ###
-###> doctrine/doctrine-bundle ###
-RUN apk add --no-cache --virtual .pgsql-deps postgresql-dev; \
-	docker-php-ext-install -j$(nproc) pdo_pgsql; \
-	apk add --no-cache --virtual .pgsql-rundeps so:libpq.so.5; \
-	apk del .pgsql-deps
+
+###> doctrine/doctrine-bundle ### postgres ###
+# RUN apk add --no-cache --virtual .pgsql-deps postgresql-dev; \
+#	docker-php-ext-install -j$(nproc) pdo_pgsql; \
+#	apk add --no-cache --virtual .pgsql-rundeps so:libpq.so.5; \
+#	apk del .pgsql-deps
+
+###> doctrine/doctrine-bundle ### mysql ###
+RUN docker-php-ext-install -j$(nproc) pdo pdo_mysql
+
 ###< doctrine/doctrine-bundle ###
 ###< recipes ###
 

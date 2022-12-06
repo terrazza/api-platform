@@ -16,19 +16,19 @@ services:
       retries: 3
       start_period: 30s
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-!ChangeMe!}@database:5432/${POSTGRES_DB:-app}?serverVersion=${POSTGRES_VERSION:-14}
+      DATABASE_URL: mysql://apiu:apipw@database:3306/app?serverVersion=8&charset=utf8mb4
       TRUSTED_PROXIES: ${TRUSTED_PROXIES:-127.0.0.0/8,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
       TRUSTED_HOSTS: ^${SERVER_NAME:-example\.com|localhost}|caddy$$
       MERCURE_URL: ${CADDY_MERCURE_URL:-http://caddy/.well-known/mercure}
       MERCURE_PUBLIC_URL: https://${SERVER_NAME:-localhost}/.well-known/mercure
       MERCURE_JWT_SECRET: ${CADDY_MERCURE_JWT_SECRET:-!ChangeThisMercureHubJWTSecretKey!}
 
-  pwa:
-    build:
-      context: ./pwa
-      target: prod
-    environment:
-      NEXT_PUBLIC_ENTRYPOINT: http://caddy
+#  pwa:
+#    build:
+#      context: ./pwa
+#      target: prod
+#    environment:
+#      NEXT_PUBLIC_ENTRYPOINT: http://caddy  
 
   caddy:
     build:
@@ -36,9 +36,9 @@ services:
       target: app_caddy
     depends_on:
       - php
-      - pwa
+#      - pwa
     environment:
-      PWA_UPSTREAM: pwa:3000
+#      PWA_UPSTREAM: pwa:3000
       SERVER_NAME: ${SERVER_NAME:-localhost}, caddy:80
       MERCURE_PUBLISHER_JWT_KEY: ${CADDY_MERCURE_JWT_SECRET:-!ChangeThisMercureHubJWTSecretKey!}
       MERCURE_SUBSCRIBER_JWT_KEY: ${CADDY_MERCURE_JWT_SECRET:-!ChangeThisMercureHubJWTSecretKey!}
@@ -63,16 +63,24 @@ services:
 
 ###> doctrine/doctrine-bundle ###
   database:
-    image: postgres:${POSTGRES_VERSION:-14}-alpine
+    build:
+      context: db/
+      target: prod    
+    command: --character-set-server=utf8 --collation-server=utf8_general_ci --default-authentication-plugin=mysql_native_password
+    restart: always
+    security_opt:
+      - seccomp:unconfirmed
     environment:
-      - POSTGRES_DB=${POSTGRES_DB:-app}
-      # You should definitely change the password in production
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-!ChangeMe!}
-      - POSTGRES_USER=${POSTGRES_USER:-app}
+      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_USER=apiu
+      - MYSQL_PASSWORD=apipw
+      - MYSQL_DATABASE=app
     volumes:
-      - db_data:/var/lib/postgresql/data
-      # you may use a bind-mounted host directory instead, so that it is harder to accidentally remove the volume and lose all your data!
-      # - ./api/docker/db/data:/var/lib/postgresql/data
+      -  db_data:/var/lib/mysql
+    ports:
+      - target: 3306
+        published: 3306
+        protocol: tcp  
 ###< doctrine/doctrine-bundle ###
 
 # Mercure is installed as a Caddy module, prevent the Flex recipe from installing another service
